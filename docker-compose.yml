@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    command: python manage.py migrate
+    command: python3 manage.py runserver 0.0.0.0:8080
+    depends_on:
+      - db
+    ports:
+      - 8080:8080
+    networks:
+      - backend
+
+  db:
+    hostname: db
+    image: postgres:14.7-alpine
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - 5456:5456
+    environment:
+      - POSTGRES_USER=ikyol
+      - POSTGRES_PASSWORD=1
+      - POSTGRES_DB=test_task
+    networks:
+      - backend
+
+  redis:
+    image: redis
+    env_file:
+      - .env
+    container_name: redis
+    networks:
+      - backend
+
+  celery:
+    restart: always
+    container_name: celery
+    env_file:
+      - .env
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    command: celery -A test_task worker --loglevel=INFO
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+    driver: bridge
